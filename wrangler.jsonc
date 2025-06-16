@@ -4,7 +4,7 @@
  */
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
-	"name": "mcp-stytch-consumer-todo-list",
+	"name": "mcp-spotify-oauth-example",
 	"main": "api/index.ts",
 	"compatibility_flags": ["nodejs_compat"],
 	"compatibility_date": "2025-03-19",
@@ -29,24 +29,18 @@
 		{
 			"tag": "v1",
 			"new_sqlite_classes": [
-				"TodoMCP"
+				"SpotifyMCP"
 			]
 		}
 	],
 	"durable_objects": {
 		"bindings": [
 			{
-				"class_name": "TodoMCP",
-				"name": "MCP_OBJECT"
+				"class_name": "SpotifyMCP",
+				"name": "SPOTIFY_MCP_OBJECT"
 			}
 		]
 	},
-	"kv_namespaces": [
-		{
-			"binding": "TODOS",
-			"id": "8579799313be4e2aa06445981011b13e"
-		}
-	],
 	/**
 	 * Environment Variables
 	 * https://developers.cloudflare.com/workers/wrangler/configuration/#environment-variables
@@ -60,11 +54,6 @@
 	 * Static Assets
 	 * https://developers.cloudflare.com/workers/static-assets/binding/
 	 */
-	"assets": {
-		"run_worker_first": true,
-		"not_found_handling": "single-page-application",
-		"binding": "ASSETS"
-	}
 	/**
 	 * Service Bindings (communicate between multiple Workers)
 	 * https://developers.cloudflare.com/workers/wrangler/configuration/#service-bindings
