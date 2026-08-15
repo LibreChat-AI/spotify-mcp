@@ -1,5 +1,6 @@
 import {SpotifyMCP} from "./SpotifyMCP.ts";
 import {spotifyBearerTokenAuthMiddleware, getSpotifyAuthEndpoint, exchangeCodeForToken, refreshAccessToken} from "./lib/spotify-auth";
+import {SPOTIFY_SCOPES, buildProtectedResourceMetadata, isProtectedResourcePath} from "./lib/oauth-metadata";
 import {cors} from "hono/cors";
 import {Hono} from "hono";
 
@@ -20,7 +21,8 @@ interface RegisteredClient {
 const registeredClients = new Map<string, RegisteredClient>();
 
 export default new Hono<{ Bindings: Env }>()
-    .use(cors())
+    /** `WWW-Authenticate` must be readable by browser clients to reach the OAuth challenge. */
+    .use(cors({origin: '*', exposeHeaders: ['WWW-Authenticate']}))
 
     // OAuth Authorization Server Discovery
     .get('/.well-known/oauth-authorization-server', async (c) => {
@@ -35,14 +37,29 @@ export default new Hono<{ Bindings: Env }>()
             grant_types_supported: ['authorization_code', 'refresh_token'],
             token_endpoint_auth_methods_supported: ['none'],
             code_challenge_methods_supported: ['S256'],
-            scopes_supported: [
-                'user-read-private', 'user-read-email', 'user-read-playback-state',
-                'user-modify-playback-state', 'user-read-currently-playing',
-                'user-read-recently-played', 'user-top-read', 'playlist-read-private',
-                'playlist-read-collaborative', 'playlist-modify-public',
-                'playlist-modify-private', 'user-library-read', 'user-library-modify'
-            ],
+            scopes_supported: [...SPOTIFY_SCOPES],
         })
+    })
+
+    /**
+     * OAuth Protected Resource Discovery (RFC 9728). Clients following the
+     * 2025-06-18 MCP spec resolve the path-aware form first and fall back to the
+     * bare well-known path, so both are served.
+     */
+    .get('/.well-known/oauth-protected-resource', async (c) => {
+        const {origin} = new URL(c.req.url);
+        return c.json(buildProtectedResourceMetadata(origin, '/mcp'))
+    })
+
+    .get('/.well-known/oauth-protected-resource/:resource{.+}', async (c) => {
+        const {origin} = new URL(c.req.url);
+        const resourcePath = `/${c.req.param('resource')}`;
+
+        if (!isProtectedResourcePath(resourcePath)) {
+            return c.json({error: 'not_found', error_description: 'Unknown protected resource'}, 404)
+        }
+
+        return c.json(buildProtectedResourceMetadata(origin, resourcePath))
     })
 
     // Dynamic Client Registration endpoint
